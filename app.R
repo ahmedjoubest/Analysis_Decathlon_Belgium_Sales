@@ -4,6 +4,10 @@
 
 # Explique chaque famille de packages sert a quoi !!
 
+# {plyr} package must be unloaded : bad interference with {dplyr} functions
+# detach("package:plyr", unload=TRUE)
+
+library(pander)
 library(shiny)
 library(dplyr)
 library(highcharter)
@@ -13,6 +17,8 @@ library(shinyWidgets)
 library(DT)
 library(shinyBS)
 
+source("helpers.R")
+
 # ALLL7777WWWAAAA =)
 # commenter had lqlawi fl app ;)
 #golih had nwita f mail anak z3ma wa3R f js donc sehlat 3lik lqadya
@@ -21,9 +27,8 @@ Data <- read_feather("Data-Decathlon.feather")
 
 server <- function(input, output, session) {
   
-  # 2.0 Data to visualize  ----
+  # 2.0 Filtered data to visualize  ----
   DT <- eventReactive(input$submit,{
-    # Filter application
     subset(
       Data,
       item_name %in% input$item_name &
@@ -34,6 +39,8 @@ server <- function(input, output, session) {
         the_date_transaction  <=  input$date[2]
     )
   })
+  
+  
   
   # 2.1 Filter interdependence ----
   
@@ -69,64 +76,30 @@ server <- function(input, output, session) {
   })
   
   # Update item_names based on prices 
-  observeEvent(input$prices,ignoreInit = TRUE, {isolate({
+  observeEvent(input$prices,ignoreInit = TRUE, {
     item_names_update <- unique(Data$item_name[Data$store_name %in% input$store_name & # to respect the actual input$name_tore
                                                  Data$prices >= input$prices[1] & 
                                                  Data$prices <= input$prices[2] ])
-    updatePickerInput(session, "item_name", selected = item_names_update)})
+    updatePickerInput(session, "item_name", selected = item_names_update)
     })
   
-  output$plot <- renderHighchart({
+  output$heat_map_correlation <- renderHighchart({
+    Make_HC_Heatmap_Correlation(DT(), X = 'store_name',Y = 'item_name',
+                                intensity = input$intensity,
+                                transaction_type = input$transaction_type)
     
-    fntltp <- JS("
-function () {
-            function getPointCategoryName(point, dimension) {
-              var series = point.series,
-              isY = dimension === 'y',
-              axis = series[isY ? 'yAxis' : 'xAxis'];
-              return axis.categories[point[isY ? 'y' : 'x']];
-              }
-          return  'Decathlon '  + '<b>' + getPointCategoryName(this.point, 'x') + '</b>' +'<br>'+
-          '<b>' + getPointCategoryName(this.point, 'y') + '</b> <br>'+
-          '<b>' + this.point.value + '</b> transactions <br><b>' + '</b>';
-    }")
-    
-    # fait gaffe khass takhod sales merra w returns mra okhra =)
-    hchart(DT() %>%
-             group_by(store_name, item_name) %>% 
-             summarize(number_of_transaction = length(the_transaction_id)),
-           "heatmap",
-           hcaes(x = store_name, y = item_name, value = number_of_transaction),
-           name = "Number of transctions",
-           marginTop = 0,
-           marginBottom = 0) %>%
-      hc_exporting(enabled = TRUE, formAttributes = list(target = "_blank")) %>%
-      hc_yAxis(title= "null") %>%
-      hc_xAxis(title= "null") %>%
-      hc_tooltip(formatter = fntltp) %>%
-      hc_colorAxis(
-        min = 0,
-        minColor= '#FFFFFF',
-        maxColor= '#07AE6B'
-      ) %>%
-      hc_legend(
-        align= 'right',
-        layout= 'vertical',
-        margin= 0,
-        verticalAlign= 'top',
-        y= 25,
-        symbolHeight= 310
-      )})   
+  })   
 }
 ui <- fluidPage(
   
   tags$head(
     tags$link(rel = "stylesheet", type = "text/css", href = "css.css")
   ),
-  
+
   titlePanel("iris"),
   sidebarLayout(
     sidebarPanel(
+      
       tipify(pickerInput(
         inputId = "store_name",
         label = "Stores",
@@ -166,19 +139,31 @@ ui <- fluidPage(
             color = "primary",
             icon = icon("sliders"),
             size = 'sm'),
-            "Explication des filtres",
+            "Apply filters",
             placement = "top"
           ))
-      
-      
-      
     ),
-    
-    mainPanel(  
-      highchartOutput("plot"),
-      dataTableOutput("datatable")
+
+    mainPanel(
+  
+      # reste a faire : Revoir les couleurs du CSS en fonction des couleurs de dashbaord ;)
+      radioGroupButtons("transaction_type", label = "Transaction type", status = "primary",
+                        choices=c("Sales" = "sale" ,"Returns" = "return")
+                        ),
+      radioGroupButtons("intensity", label = "Intensity variable", status = "primary",
+                        choices=c("Number of transactions" = "length(the_transaction_id)" ,
+                                  "Total turnover" = "sum(turnover)",
+                                  "Total quantity" = "sum(quantity)")
+                        ),
+      
+      highchartOutput("heat_map_correlation"),
+      tableOutput("logs_table")
+      
     )
     
   )
 )
+
+# 3.0 RUN APP -------------------------------------------------------------
+
 shinyApp(ui, server)

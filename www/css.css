@@ -3,3 +3,17 @@
                 color: white;
                 background-color: blue;
                 }
+.btn-primary.btn {
+                      color: #045A70;
+                      background-color: #C9DAEB;
+                      border: 2px #48ACC6 solid;
+                      }
+                      .btn-primary.btn:hover {
+                      color: #fff;
+                      background-color: #7CB6F2;
+                      }
+                      .btn-primary.active {
+                      color: #fff;
+                      background-color: #4877A8;
+                      border-color: #C9DAEB;
+                      }
