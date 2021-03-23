@@ -1,6 +1,9 @@
 library(data.table)
 library(stringi)
-library(feather) # Faster reading than readRDS if we're not compromised by storage. More details in https://appsilon.com/fast-data-loading-from-files-to-r/
+library(feather)
+library(lubridate)
+
+# Faster reading than readRDS if we're not compromised by storage. More details in https://appsilon.com/fast-data-loading-from-files-to-r/
 item_names <- c("shaker_A","shaker_B","shaker_C","shaker_D","supplement_A","supplement_B","supplement_C","supplement_D","supplement_E","supplement_F","bag_A","bag_B","bag_C","bag_D","bag_E","shoes_A","shoes_B","shoes_C","shoes_D","shoes_E","shoes_F","shoes_G","shoes_H","bike_A","bike_B","bike_C","bike_D","bike_E","bike_F","bike_G","bike_H","bike_I","bike_J","bike_K","bike_L","scooter_A","scooter_B","scooter_C","scooter_D","scooter_E","scooter_F","scooter_G","scooter_H","scooter_I","scooter_J","Dumbbell_A","Dumbbell_B","Dumbbell_C","Dumbbell_D","Dumbbell_E","jacket_A","jacket_B","jacket_C","jacket_D","jacket_E","watch_A","watch_B","watch_C","watch_D","watch_E","watch_F","watch_G","watch_H","treadmill_A","treadmill_B","treadmill_C","treadmill_D","treadmill_E","treadmill_F","treadmill_G","w_machine_A","w_machine_B","w_machine_C","w_machine_D","w_machine_E","w_machine_F","w_machine_G","w_machine_H","w_machine_I","w_machine_J")
 store_names <- c("Evere","Charleroi","Mons","Verviers","Wavre","Louviere","Bruxelles","Namur","Nivelles","Hasselt","Alleur","OLEN")
 
@@ -10,9 +13,9 @@ Nb_store <- 12 # donner des maximum azbi !
 # Total number of items in all stores (80 max)
 Nb_items <- 80 # 80 max !
 # Number of day of the period analyzed
-Nb_jours <- 365*3
+Nb_jours <- 365*4
 # Mean number of transaction per day, per store and per item 
-mean_Nb_Transactions <- 1
+mean_Nb_Transactions <- 0.2
 # Random seed
 seed <- 100
 
@@ -83,7 +86,7 @@ Generate_random_data <- function(Nb_store, Nb_items, Nb_jours, mean_Nb_Transacti
   # (We affect naturally low prices to items with big number of transaction)
   # We want to affect the range [0.5,300] Euro to the 70% most redundant items, [300, 1200] Euro to the next 25%
   # And [1200,3500] Euro for the last 5%
-  DT <- DT <- DT[order(-sku_idr_sku)] # sorting based on items ID
+  DT <- DT[order(-sku_idr_sku)] # sorting based on items ID
   Counts_items <- DT[,.N,by=sku_idr_sku][,c(N)]
   # subset the vector to 3 parts based on that percentage
   Nb_item_70 <- 1:round((0.7*length(Counts_items)))
@@ -143,6 +146,16 @@ Generate_random_data <- function(Nb_store, Nb_items, Nb_jours, mean_Nb_Transacti
   DT[,turnover := quantity*prices]
   print("turnovers added")
   
+  ### add day/month/year/quarter columns
+  DT[,month:= lubridate::month(the_date_transaction,label = TRUE, locale = "English")]
+  DT[,year:= as.character(
+    lubridate::year(the_date_transaction)
+  )]
+  DT[,quarter:= paste0("Qr.",
+                       quarter(the_date_transaction)
+  )]
+  DT[,day:= lubridate::wday(the_date_transaction, label = TRUE, locale = "English")]
+  print("day/month/year/quarter added")
   
   ### shuffle by rows
   DT <- DT[sample(nrow(DT))]
@@ -157,6 +170,8 @@ Generate_random_data <- function(Nb_store, Nb_items, Nb_jours, mean_Nb_Transacti
   #return(DT)
   return("done")
 }
+
+# test function .. (bhal li dar khona)
 
 Generate_random_data(Nb_store, Nb_items, Nb_jours, mean_Nb_Transactions,
                      seed, store_names = store_names, item_names = item_names )
