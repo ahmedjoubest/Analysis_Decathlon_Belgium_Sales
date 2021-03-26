@@ -297,6 +297,66 @@ Make_HC_Chronological_heatmap <- function(DT,X,intensity,transaction_type){
   }
 }
 
+# 3. Barplot for store_names comparaison--------------------------------------
+
+### Arguments : 
+### DT = Data
+### X = X axis of heat map -- e.g. : "store_name"
+### Y = Y axis of heat map -- e.g. : "item_name"
+### intensity = The Heat Map intensity variable, value token for summarizing the grouped DT
+###         if the variable is qualitative (i.e. "the_transaction_id"), then it calculates the occurrence
+###         which means: {length(the_transaction_id))}. otherwise, if the argument is quantitative
+###          (i.e. "turnover"), then it calculates the total sum, which means: sum(turnover).
+### transaction_type : The type of transaction, takes either "sale" or "return"
+### P.S: except DT, all other arguments are strings
+
+Make_HC_Barplot <- function(DT, X, Y, group, percent, horizontal){
+  # (Testing Function bellow)
+  
+  type_HC <- ifelse(horizontal, 'bar','column')
+  
+  hchart(DT %>%
+           group_by(.data[[X]],.data[[group]]) %>%
+           summarize(value = ifelse(
+             # If the argument 'group' we *summarize* through is a qualitative variable in DT, then calculate
+             # the occurrence (e.g: the_transaction_id). otherwise, calculate the sum (e.g: turnover or quantity)
+             is.character(.data[[Y]]),
+             length(.data[[Y]]),
+             sum(.data[[Y]])
+             )
+             ),
+         type_HC,
+         hcaes(x = .data[[X]], y = value, group= .data[[group]]),
+         marginTop = 100,
+         marginBottom = 0
+         ) %>%
+    hc_xAxis(title = '') %>%
+    hc_yAxis(title = 
+               list(text = paste0('Total {',Y,'}')
+                      )
+             )%>% 
+    hc_colors(c("red", "#07AE6B")) %>%
+    hc_exporting(enabled = TRUE, formAttributes = list(target = '_blank'), # Customizing exporting button
+                 buttons = JS('{
+                contextButton: {
+                    symbolStroke: "white",
+                    theme: {
+            fill:"#3C8DBC"
+        }
+                }
+            }')) %>% 
+    hc_plotOptions(series = list(pointPadding=0.05, groupPadding= 0.09,
+                                 stacking = ifelse(percent,
+                                                   list('percent'),
+                                                   list(NULL))[[1]]
+                                )
+                   ) %>% 
+    hc_tooltip(shared = TRUE,
+               crosshairs = TRUE,
+               followPointer = T,
+               borderColor = "grey")
+}
+
 
 # TESTING FUNCTIONS -------------------------------------------------------
 
@@ -308,6 +368,10 @@ Make_HC_Chronological_heatmap <- function(DT,X,intensity,transaction_type){
 
 # Make_HC_Chronological_heatmap(DT = Data, X = 'month', intensity = 'turnover',
 #                                 transaction_type = 'return')
+
+# Make_HC_Columns(DT = Data, X = "store_name", Y = "quantity",
+#                 group= "tdt_type_detail", percent = F)
+
 
 
 # ship_name = 'ADASTRA'
